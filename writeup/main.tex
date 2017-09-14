@@ -1,0 +1,100 @@
+\documentclass[a4paper,12pt,twosides]{book}
+
+\usepackage{graphicx} % to set the title_page image (university's logo)
+\usepackage{url}
+\usepackage{cite}     % bibliography
+\usepackage{geometry} %for margins removal
+
+\usepackage{listings} % makes code look good
+\usepackage{color}    % for syntax highlight
+
+\usepackage{pdfpages} % to insert other pdfs  
+
+% these are beeded for the pseudocode
+\usepackage{amsmath} 
+\usepackage{algorithm}
+\usepackage[noend]{algpseudocode}  
+
+
+\usepackage{fancyvrb} %style verbatim
+\usepackage{float} % enforce image positions
+
+\usepackage{afterpage} % to put blank pages after other
+
+\usepackage{csquotes} % to use the right kind of quotes
+
+
+% this part defines how to do syntax highlight
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{frame=none,
+  aboveskip=0mm,
+  belowskip=0mm,
+  showstringspaces=false,
+  columns=flexible,
+  basicstyle={\small\ttfamily},
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  language=Java,
+  stepnumber=1,
+  numbersep=4pt,
+  % breaklines=false,
+  % breakatwhitespace=false
+  tabsize=2
+}
+%end syntax highlight
+
+%Automatically add contents
+\newcommand\chap[1]{
+  \chapter*{#1}
+  \addcontentsline{toc}{chapter}{\protect\numberline{}#1}}
+
+%command for blak pages
+\newcommand\blankpage{%
+  \null
+  \thispagestyle{empty}%
+  \addtocounter{page}{-1}%
+  \newpage}
+
+%center verbatim stuff
+\newenvironment{centerverbatim}{%
+  \par
+  \centering
+  \varwidth{\linewidth}%
+  \verbatim
+}{%
+  \endverbatim
+  \endvarwidth
+  \par
+}
+
+\title{DevArtist: a compiler-based approach to application hardening on Android.}
+\author{Giovanni De Francesco}
+
+\begin{document}
+  \input{front}
+  \input{front_unitn}
+  \includepdf[pages={1}]{consent_declaration.pdf}
+  \input{dedication}
+  \frontmatter
+  	\tableofcontents
+  \mainmatter
+    \input{abstract}
+    \input{chapter_intro}
+    \input{chapter_back}
+    \input{chapter_rel}
+    \input{chapter_inve}
+    \input{chapter_dev}
+    \input{chapter_eval}
+    \input{conclusion}
+    \input{acknowledgements}
+  \appendix
+    \input{appendix}
+  \bibliographystyle{unsrt}
+  \bibliography{bibliography}
+\end{document}

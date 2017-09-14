@@ -1,0 +1,113 @@
+\chapter{Preliminary Investigation}
+\label{ch:investigation}
+One of the most recurrent subject in talks regarding Android, is how much the platform does not help developers write secure code. Speakers usually make examples of how developers forget to make usage of private mode when saving preferences or either resorting in saving important documents on the SD card, where are publicly available\cite{codemotion}. Moreover, resources such as Stack Overflow\footnote{\url{www.stackoverflow.com}}, where developers can share solutions to common problems, do not really help when the security of the published code is often of no importance. Therefore, before starting this work, I identified common vulnerabilities which I thought could be fixed at the compiler level and each of them is here presented with an appropriate threat model\footnote{To prevent malicious uses of this work, threat models are explained in as much details as possible, but no code will be provided.}. Furthermore, the fact that these problems were reported did not mean that they were present in top Android apps, hence, before actually creating \emph{DevArtist} to solve these security issues, an investigation was necessary to determine whether they were present and how wide-spread they were.
+
+\section{Hashing}
+The term is used to identify the process of transforming data of arbitrary length to data of fixed size, which can be obtained with so called \emph{Hash functions}. Many fields of computer science use these functions to achieve a variety of results, ranging from memory optimization to algorithms which produce randomness or, as analyzed in this thesis, to verify data integrity. However, the possibility to use such functions in the latter field, exists due to another property: collision-resistance. In fact, any secure hash function is collision-resistant in the sense that it is computationally hard to find two inputs which produce the same hash, otherwise it is said that such function is not cryptographically secure in respect to collisions. Furthermore, due to the fact that on Android the full Java cryptography package is available, a developer must decide which hashing algorithm has to use, depending on its use case because not all of the already existing ones are cryptographically secure.
+
+\subsection{The MD5 Case}
+Message Digest 5, hence the MD5 acronym, was developed by Ronald Rivest in 1991 and it was formalized on RFC 1321. However, since Dobbertin found a collision\cite{dobbertin} in 1996, many other publications reported cases against the algorithm, culminating in 2012 with Marc Stevens, who published in \cite{stevens}, an algorithm and sources to execute a collision attack on MD5 with the use of a normal laptop. Due to these reasons, the cryptography community suggested to move on to more secure hashing methods such as SHA-1. It is worth to mention that the algorithm could still be used safely to verify data integrity when there is no reason to believe that intentional corruption, by a malicious third-party, took place.
+
+\subsection{The SHA1 Case}
+Secure Hashing Algorithm 1, \enquote{SHA1} in short, was developed by the United States Security Agency in 1995. Ten years later Rijmen and Oswald published an initial collision attack\cite{sha1b1}, which was followed in 2005 by another paper from Marc Stevens\cite{sha1b2}, who estimated that an attack could be made by investing maximum 2.77 million U.S. dollars in virtualized computing power. More recently, Google's employees achieved and showed in \cite{sha1b3} how it was possible to create collisions for SHA1. Therefore, cryptography researchers and companies suggest to move on more secure hashing methods, such as SHA-256, whenever the computational power of the device allows.
+
+\subsection{Threat Model}
+Attacks on Android apps which make use of hashing functions are difficult to report, due to the fact it depends on how the app uses the function. The most common attack vector for this kind of vulnerability is a Man-In-The-Middle (MITM) attack for apps that download from the Internet a package and verify its integrity with MD5 or SHA1. In this case, the attacker can use a proxy between the app and the outside network to change the package with a malicious one which has the same hash as the original one. Of course, being able to install a proxy is an intermediate level of difficulty, whilst creating a malicious package which has the same hash as the original one is definitively harder, but it is indeed possible and it is not too far dissimilar from what happened with the Swift keyboard app shipped within the Galaxy Samsung S6 in 2015 (CVE-2015-4640 and CVE-2015-4641)\footnote{https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2015-4641}, which was downloading language packs from the Internet. Although, \emph{DevArtist} wouldn't have voided completely the above mentioned attack, due to its sophistication, SHA1 was still in use to verify the downloaded zip and, if the checksum field in the json file was transfered over \texttt{HTTPS} instead of \texttt{HTTP}, someone with the right amount of money and time would have performed an attack similar to the one described above. This example and many other apps in the Play Store, such the ones which download wallpapers or themes to style the interface of Android, show that such functionality exists and could be exploited. 
+
+\section{SQL and Injections}
+As the definition applies: a database is a collection of data and the software which manages it is called Database Management System or, in short, DBMS. Many kinds of DBMS are being developed since 1960 but the most popular one, still in 2017 (the year of writing), as shown in Fig: \ref{appendix:dbmarketshare} by solid-IT in their DB-Engine ranking\footnote{https://db-engines.com/en/ranking} is a direct descendant of the relational database described in \cite{dbrelational} by Edgar F. Codd in 1970. Probably for this reason and for the possibility to have a database in one single file, Google, on its Android, decided to provide developers with a relational database named SQLite as their only DBMS option. Therefore, developers are allowed to create as many databases as they want inside their own, hopefully private, folders. However, by doing this, it left an open margin for SQL Injections (SQLi), which are particular code injections techniques with the aim of stealing user's data from any SQL-enabled database. In fact, the main concept behind SQLi is the ability to write valid SQL code inside an input field, which modifies the behavior of the original one to extract protected information, thus showing the private ones instead of the expected information. These kind of attacks were really \emph{popular} during the early PHP era and they allowed massive breaches, which produced incredible amounts of stolen credit cards, password and other user information\footnote{Examples of data breaches with SQL Injection can be found extensively on-line.}. 
+
+\subsection{The Case of the \emph{RawQuery} Method}
+Android developers interact with the underlying SQLite within the class \texttt{SQliteDatabase}, which provides all the methods to perform CRUD\footnote{Acronym for: Create, Read, Update, Delete} operations. However, both for performances and incrementation of the capability offered by the system, a way to execute queries in a non constructed manner is provided as API, leaving the responsibility of proper usage to developers. That API is the \emph{rawQuery()} method. In fact, if a developer is unaware of the danger which such API exposes to, malicious attackers could use it to perform SQL injections and extract user data. The code in listing \ref{lst:injection} shows an example of possible Android code, supposedly returning only the passwords for the defined account id and URL. However, the value of the variable \emph{url} can be manipulated in such a way which makes the query return all the passwords also for other accounts.\newline\newline
+
+\lstset{numbers=left, numberstyle=\tiny, stepnumber=1, numbersep=5pt}
+\begin{lstlisting}[language=Java, label={lst:injection}, caption="SQL injection example", captionpos=b]
+public List<String> foo(int id, String url){
+	String sql = "SELECT password FROM passwords "+
+	   			" WHERE accountID="+id+" AND URL='"+url"'";
+	SQliteDatabase db = getReadableDatabase();
+	Cursor c = db.rawQuery(sql, null);
+	List<String> foos = new ArrayList<>();
+	while(c.hasNext()){
+		foos.add(c.getString(0));
+	}
+	return foos;
+}
+\end{lstlisting}
+
+% \subsection{Threat Model}
+% There are several Attack models for SQL injection on Android and they are here described on the level of difficulty which is required to successfully take advantage of them.
+
+% \subsubsection{Easy attack}
+% This threat model envisions that a malicious person (Eve) steals shares, even for a short period of time, the mobile phone of another person (Alice). If this event occurs and Eve knows that an application (A) is subject to an SQL Injection it can simply open the app and run the SQL Injection. This attack might seem ephemeral at first, but take as example an app that shows contacts based on the account in use by the Android system or, as mentioned before, a password manager. In these cases, even if the attack is easy and requires manual intervention, the danger of exposing unwanted information to the wrong person is high.
+
+\subsubsection{Advanced Attack} 
+As mentioned in section \ref{sc:exportedcomponents}, certain components in the Android's SDK  are allowed to be accessed publicly by other applications. One possible case of such components is the \texttt{ContentProvider}, which can offer data from a SQLite database owned by the app (A) to another app (B), if exported, through an interface. In this case, if the interface is using string composition as showed earlier and the method \texttt{rawQuery}, an attacker could install a rogue app which exploits this vulnerability and leak the information contained in A. Installing such application is not that hard, one can do it manually if physical access to the device is granted or remotely by inducing the victim (with a Whatsapp message if the number of the victim is known, or other social engineering means) in downloading an app that pretends to do one thing and, in the meanwhile, exploits the vulnerability.
+
+\section{Randomness}
+\label{sec:randominvestigation}
+In Computer Science, it is often necessary to produce random data and, although generating real randomness is still an open problem, Java provides two classes to produce pseudo-random data: \emph{Random} and \emph{SecureRandom}. The former class, should not be employed in a hardened environment due to the fact that it is using a Linear Congruential Generator (LCG) which has been demonstrated to be broken in \cite{lcgbreak} by Hugo Krawczyk. On the other hand, \emph{SecureRandom}, if used correctly, draws its randomness from \emph{/dev/urandom}, which is considered more secure by the cryptographic community as discussed in \cite{secrandom} and \cite{urandom}. However, as reported by BBC\cite{bbc} and other news publishers, the algorithm in use by \emph{SecureRandom} could be broken by the U.S National Security Agency (NSA). To avoid philosophical discussions over what is trusted or not in this work, we assume that \emph{SecureRandom} provides a better security over the \emph{Random} class. The only exception to this assumption is on Android Jellybean, where \texttt{SecureRandom} was vulnerable, as described in \cite{bitcoinalert} and \cite{randomalert}, but since this project is built for Android 7 \enquote{Nougat}, the case is not a concern.
+
+\subsection{Threat Model}
+Since describing meaningful attack vectors of apps which contains an insecure usage of random is difficult due to their dependency on the purpose of their target, I will make use of an example: a poker app which needs to shuffle the deck and allows the player to buy virtual coins in exchange of real coins. In this case, the developer of the app might have used the class \texttt{Random} instead of \texttt{SecureRandom} and, if the player manages to guess the seed it can reproduce the shuffle of the deck and win every match. Although the difficulty of performing such an attack is hard, it might still be perpetrated by a resolute attacker especially due to the fact that money is involved, thus showing the importance of patching randomness.
+
+\section{Preliminary Analysis}
+\label{sc:preliminaryanalysis}
+To investigate on the severity of the above issues, it was necessary to check if applications already published in the Play Store contained the signatures of the Java methods used to produce them. Therefore, I developed an \emph{Artist} module which detects the signatures of methods listed below and extended Monkey Troop to re-compile applications with my module, allowing me to count the number of usages of those calls. Moreover, the full source code of this module and the Monkey Troop extension is available on Github\footnote{\url{https://www.github.com/jibbo/master_thesis}}.
+
+\begin{itemize}
+	\label{it:signs}
+	\item{For Random: java.util.Random.\textless init\textgreater}
+	\item{For SecureRandom: java.security.SecureRandom.\textless init\textgreater}
+	\item{For MD5, SHA-1, SHA-256: java.security.MessageDigest.getInstance(java.lang.String)}
+	\item{For rawQuery():\newline android.database.sqlite.SQLiteDatabase.rawQuery(java.lang.String, java.lang.String[])}
+\end{itemize}
+
+\subsection{The List of Apps}
+The evaluation was conducted on the top 500 apps of the Play Store, available in Germany as the 1st of January 2017, the full list can be found in \ref{appendix:appslist}, ordered alphabetically by their package name, which is unique. Therefore, popular apps such as Facebook, Telegram, WhatsApp, Instagram, Snapchat, Pinterest (to name a few) are included in the list. It is a general belief that the most downloaded apps are either social networks or games and that, especially the latter category, these apps are less secure. However, it is worth to mention that top apps are computed over the most downloaded apps in every every category available on the Store, such as: Finance, Productivity, News, Photography and so on \footnote{Full list available in appendix \ref{appendix:categorieslist}}.
+
+\newpage
+\subsection{Monkey Troop Extension}
+The first change to this automated system was to specify, through a script, the commands needed to be executed and they can be found below. Since every signature could be checked through static analysis when compiling, these commands do not need to be many and follow every execution path, but they need to ensure that any app can at least be launched without crashing and provide an extensive log for deeper investigation. Therefore, I instructed the system with the commands below and then extended the analyzer class (\texttt{ResultAnalyzer.py}) to keep track of the specific log outputs of my module. These logs get stored inside a SQLite Database only when the above mentioned class reported that all the steps had been executed successfully. Moreover, the database was composed of only one table which contained two fields: the package-name of the apps and a specific line of the Logcat designed for the purpose. In fact, to detect the hashing algorithm, my module logged a line with the following shape: \enquote{[DC][HASHING][ALGORITHM\_NAME]}, whilst for all the other cases, the form \enquote{[DC][SIGNATURE] usage found} was used. In this way, counting only the the needed signatures or specific hashing function could be achieved by filtering the log line through standard SQL queries.
+
+\begin{itemize}
+	\item{Download app from the Play Store}
+	\item{Install the app on the device}
+	\item{Run the app}
+	\item{Re-Compile the app with the module}
+	\item{Run the instrumented app}
+	\item{Copy the full Logcat in a file}
+	\item{Repeat with another app from the list}
+\end{itemize}
+
+\subsection{Results}
+Monkey Troop makes usage of a third party tool to download application from the Play Store, but, due to authentication problems between the third-party tool and the Play Store, happening systematically only when downloading certain apps, the population shrunk from 500 apps to 492.  In addition, although the remaining part of the apps could be run, the actual population shrunk again to 392 due to \emph{Artist} itself, which (in my own tests) has a success rate in instrumenting of only 85,40\%. From a preliminary analysis, these apps seem to be using APIs which are not supported by \emph{Artist} as also mentioned in \cite{artist}. Moreover, taking in consideration apps below the top 500 line, to increment the number of examined apps, would have decreased too much the quality of the population, thus risking worse results. Every number reported in table \ref{tb:respreliminary} was extracted from the SQL database, filtered by the signature and grouped by the app package-name when necessary.
+
+\begin{table}
+	\vspace{1.5cm}
+	\centering
+	\begin{tabular}{|c|c|c|}
+		\hline
+		Subject & Found in \# of apps  & Times used \\
+		\hline
+		Random & 261 & 2909 \\
+		\hline
+		SecureRandom & 244 & 1023\\
+		\hline
+		rawQuery & 296 & 737\\
+		\hline
+		MD5 & 189 & 2743\\
+		\hline
+		SHA-1 & 119 & 1091\\
+		\hline
+		SHA-256 & 29 & 339\\
+		\hline
+	\end{tabular}
+	\caption{Number of method signatures found}
+	\label{tb:respreliminary}
+	\vspace{1.5cm}
+\end{table}
+
+\subsection{Conclusions}
+Table \ref{tb:respreliminary} shows that MD5 is used in more than 48\% of the cases alone, making it the most widely used hash function. Moreover, even SHA-1 reaches a remarkable 30\% of usage, making it clear that the usage of broken hash functions is very common and it should be the first danger addressed by this work. Furthermore, the usage of the insecure \texttt{rawQuery()} method is also astonishingly wide-spread, since the method is present in more than the 75,5\% of the apps. In addition, although the class \texttt{SecureRandom} and \texttt{Random} are present in almost the same amount of apps, the insecure one is used almost twice as many times. Therefore, this data suggested that there is a real need in addressing the issue.
+

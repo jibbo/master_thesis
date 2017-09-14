@@ -1,0 +1,48 @@
+This is BibTeX, Version 0.99d (TeX Live 2016)
+Capacity: max_strings=35307, hash_size=35307, hash_prime=30011
+The top-level auxiliary file: main.aux
+The style file: unsrt.bst
+Database file #1: bibliography.bib
+Warning--empty school in irm
+You've used 37 entries,
+            1791 wiz_defined-function locations,
+            613 strings with 9589 characters,
+and the built_in function-call counts, 5720 in all, are:
+= -- 464
+> -- 258
+< -- 1
++ -- 108
+- -- 71
+* -- 189
+:= -- 929
+add.period$ -- 112
+call.type$ -- 37
+change.case$ -- 36
+chr.to.int$ -- 0
+cite$ -- 38
+duplicate$ -- 259
+empty$ -- 680
+format.name$ -- 71
+if$ -- 1319
+int.to.chr$ -- 0
+int.to.str$ -- 37
+missing$ -- 14
+newline$ -- 185
+num.names$ -- 34
+pop$ -- 195
+preamble$ -- 1
+purify$ -- 0
+quote$ -- 0
+skip$ -- 122
+stack$ -- 0
+substring$ -- 57
+swap$ -- 50
+text.length$ -- 1
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 0
+warning$ -- 1
+while$ -- 39
+width$ -- 39
+write$ -- 373
+(There was 1 warning)
